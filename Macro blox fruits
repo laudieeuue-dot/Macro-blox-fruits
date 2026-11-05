@@ -1,0 +1,139 @@
+
+-- Language: Luau | Roblox Studio | Android
+-- WESLLEY HUB - ULTRA LOCK TARGET V2
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+
+local MAX_DISTANCE = 250
+local Enabled = false
+local Target = nil
+
+-- GUI
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "WeslleyHubLock"
+Gui.ResetOnSpawn = false
+Gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local Button = Instance.new("TextButton")
+Button.Name = "LockButton"
+Button.Size = UDim2.fromOffset(180, 55)
+Button.Position = UDim2.new(0, 20, 0.30, 0)
+Button.BackgroundColor3 = Color3.fromRGB(170, 35, 45)
+Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+Button.TextScaled = true
+Button.Font = Enum.Font.GothamBold
+Button.Text = "✦ LOCK: OFF"
+Button.AutoButtonColor = true
+Button.Parent = Gui
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 15)
+Corner.Parent = Button
+
+local Stroke = Instance.new("UIStroke")
+Stroke.Color = Color3.fromRGB(255, 255, 255)
+Stroke.Thickness = 1.5
+Stroke.Transparency = 0.35
+Stroke.Parent = Button
+
+local function GetClosest()
+    local character = LocalPlayer.Character
+    local myRoot = character and character:FindFirstChild("HumanoidRootPart")
+
+    if not myRoot then
+        return nil
+    end
+
+    local closest = nil
+    local shortest = MAX_DISTANCE
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local char = player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+
+            if root and humanoid and humanoid.Health > 0 then
+                local distance = (root.Position - myRoot.Position).Magnitude
+
+                if distance < shortest then
+                    shortest = distance
+                    closest = root
+                end
+            end
+        end
+    end
+
+    return closest
+end
+
+local function SetEnabled(state)
+    Enabled = state
+    Target = state and GetClosest() or nil
+
+    Button.Text = Enabled and "✦ LOCK: ON" or "✦ LOCK: OFF"
+
+    Button.BackgroundColor3 = Enabled
+        and Color3.fromRGB(0, 190, 105)
+        or Color3.fromRGB(170, 35, 45)
+end
+
+Button.Activated:Connect(function()
+    SetEnabled(not Enabled)
+end)
+
+local function UpdateLock()
+    if not Enabled then
+        return
+    end
+
+    local Camera = workspace.CurrentCamera
+
+    local character = LocalPlayer.Character
+    local myRoot = character and character:FindFirstChild("HumanoidRootPart")
+
+    if not myRoot then
+        Target = nil
+        return
+    end
+
+    if not Target or not Target.Parent then
+        Target = GetClosest()
+    end
+
+    if not Target then
+        return
+    end
+
+    local distance = (Target.Position - myRoot.Position).Magnitude
+
+    if distance > MAX_DISTANCE then
+        Target = GetClosest()
+        return
+    end
+
+    if Camera then
+        Camera.CFrame = CFrame.lookAt(
+            Camera.CFrame.Position,
+            Target.Position
+        )
+    end
+end
+
+RunService:BindToRenderStep(
+    "WeslleyHubUltraLock",
+    Enum.RenderPriority.Camera.Value + 1,
+    UpdateLock
+)
+
+LocalPlayer.CharacterAdded:Connect(function()
+    Target = nil
+end)
+
+script.Destroying:Connect(function()
+    RunService:UnbindFromRenderStep("WeslleyHubUltraLock")
+    Gui:Destroy()
+end)
